@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مركز العاب نادي الإنجاز الإبداعي</title>
+<!--
+  الخط مستضاف محليًا (داخل مجلد fonts) بدل الاعتماد على خوادم Google،
+  وهذا يحل مشكلة اختلاف/فشل تحميل الخط حسب الشبكة أو الجهاز نهائيًا.
+  خطوات مطلوبة منك (مرة وحدة فقط):
+  1) روح https://fonts.google.com/specimen/IBM+Plex+Sans+Arabic واضغط "Download family"
+  2) بيوصلك ملف .zip فيه خطوط بصيغة .ttf — حوّلها لصيغة .woff2 (أخف وأسرع) عبر أي موقع تحويل مجاني
+     مثل https://cloudconvert.com/ttf-to-woff2 أو https://transfonter.org
+  3) سمّي الملفات بالضبط بهذي الأسماء وحطها بمجلد اسمه "fonts" بجانب ملف index.html:
+     fonts/IBMPlexSansArabic-Light.woff2      (وزن 300)
+     fonts/IBMPlexSansArabic-Regular.woff2    (وزن 400)
+     fonts/IBMPlexSansArabic-Medium.woff2     (وزن 500)
+     fonts/IBMPlexSansArabic-SemiBold.woff2   (وزن 600)
+     fonts/IBMPlexSansArabic-Bold.woff2       (وزن 700)
+  إذا ما سويت هذي الخطوة بعد، ما تشيل هذا القسم — المتصفح ببساطة يرجع لخط النظام الاحتياطي (Segoe UI/Tahoma) بدون ما ينكسر أي شي بالموقع.
+-->
+<style>
+  @font-face {
+    font-family: 'IBM Plex Sans Arabic';
+    font-weight: 300;
+    font-display: swap;
+    src: url('fonts/IBMPlexSansArabic-Light.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'IBM Plex Sans Arabic';
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/IBMPlexSansArabic-Regular.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'IBM Plex Sans Arabic';
+    font-weight: 500;
+    font-display: swap;
+    src: url('fonts/IBMPlexSansArabic-Medium.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'IBM Plex Sans Arabic';
+    font-weight: 600;
+    font-display: swap;
+    src: url('fonts/IBMPlexSansArabic-SemiBold.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'IBM Plex Sans Arabic';
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/IBMPlexSansArabic-Bold.woff2') format('woff2');
+  }
+</style>
+<!-- مكتبة Firebase (مطلوبة فقط بعد ما تفعّل FIREBASE_ENABLED وتعبّي firebaseConfig تحت في السكريبت) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<!-- يمنع "قفزة" الخط: يخفي الصفحة جزء من الثانية لحد ما يتأكد المتصفح من تحميل الخط، بدل ما تبدأ بخط النظام وتتحول فجأة -->
+<style>html{visibility:hidden}html.gc-fonts-ready{visibility:visible}</style>
+<script>
+  (function () {
+    var html = document.documentElement;
+    var reveal = function () { html.classList.add('gc-fonts-ready'); };
+    if ('fonts' in document) {
+      Promise.race([
+        document.fonts.load('400 1em "IBM Plex Sans Arabic"').then(function () { return document.fonts.ready; }),
+        new Promise(function (res) { setTimeout(res, 1000); })
+      ]).then(reveal).catch(reveal);
+    } else {
+      reveal();
+    }
+  })();
+</script>
+<style>
+  :root {
+    --green: #2E7D32;
+    --green-light: #4CAF50;
+    --red: #C62828;
+    --red-light: #EF5350;
+    --orange-status: #EF6C00;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 400;
+    direction: rtl;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    color: #fff;
+    background: #0a0503;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+    -webkit-text-size-adjust: 100%;
+  }
+  /* المتصفحات على الحاسوب لا تورّث خط الموقع تلقائيًا لعناصر الفورم (أزرار، حقول، قوائم)
+     وتستخدم بدلًا منه خط النظام، وهذا سبب "خراب" الخط شوي على البيسي — نجبرها هنا على وراثة نفس الخط */
+  button, input, select, textarea, option {
+    font-family: inherit;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ====== UX ANIMATED BACKGROUND ====== */
+  .gc-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: #0a0503;
+    overflow: hidden;
+  }
+  .gc-mesh {
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 80% at 20% 20%, rgba(255,107,53,0.25) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 60% at 80% 80%, rgba(208,0,0,0.2) 0%, transparent 50%),
+      radial-gradient(ellipse 70% 70% at 50% 50%, rgba(244,140,6,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 50% at 70% 30%, rgba(255,159,28,0.2) 0%, transparent 50%);
+    animation: meshShift 15s ease-in-out infinite alternate;
+    filter: blur(40px);
+  }
+  @keyframes meshShift {
+    0% { transform: translate(0,0) rotate(0deg) scale(1); }
+    33% { transform: translate(-30px, 20px) rotate(2deg) scale(1.05); }
+    66% { transform: translate(20px, -30px) rotate(-1deg) scale(0.98); }
+    100% { transform: translate(-10px, 10px) rotate(1deg) scale(1.02); }
+  }
+  .gc-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.5;
+    mix-blend-mode: screen;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+  }
+  .gc-blob:nth-child(1) {
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle at 30% 30%, #FF6B35 0%, #E85D04 40%, transparent 70%);
+    top: -15%; right: -10%;
+    animation: blobFloat1 18s ease-in-out infinite alternate;
+  }
+  .gc-blob:nth-child(2) {
+    width: 55vw; height: 55vw;
+    background: radial-gradient(circle at 50% 50%, #F48C06 0%, #D00000 45%, transparent 70%);
+    bottom: -20%; left: -15%;
+    animation: blobFloat2 22s ease-in-out infinite alternate;
+  }
+  .gc-blob:nth-child(3) {
+    width: 45vw; height: 45vw;
+    background: radial-gradient(circle at 40% 60%, #FF9F1C 0%, #C73E1D 40%, transparent 70%);
+    top: 30%; left: 15%;
+    animation: blobFloat3 16s ease-in-out infinite alternate;
+  }
+  .gc-blob:nth-child(4) {
+    width: 40vw; height: 40vw;
+    background: radial-gradient(circle at 60% 40%, #E36414 0%, #9D0208 35%, transparent 70%);
+    top: 50%; right: 10%;
+    animation: blobFloat4 20s ease-in-out infinite alternate;
+  }
+  .gc-blob:nth-child(5) {
+    width: 35vw; height: 35vw;
+    background: radial-gradient(circle at 50% 50%, #FAA307 0%, #DC2F02 30%, transparent 65%);
+    top: 5%; left: 35%;
+    animation: blobFloat5 25s ease-in-out infinite alternate;
+    opacity: 0.3;
+  }
+  @keyframes blobFloat1 {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-40px, 30px) scale(1.1); }
+    100% { transform: translate(20px, -20px) scale(0.95); }
+  }
+  @keyframes blobFloat2 {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(30px, -40px) scale(0.95); }
+    100% { transform: translate(-20px, 20px) scale(1.05); }
+  }
+  @keyframes blobFloat3 {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(50px, 40px) scale(1.15); }
+    100% { transform: translate(-30px, -20px) scale(0.9); }
+  }
+  @keyframes blobFloat4 {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-40px, -30px) scale(1.08); }
+    100% { transform: translate(30px, 10px) scale(0.95); }
+  }
+  @keyframes blobFloat5 {
+    0% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-60px, 40px) scale(1.2); }
+    100% { transform: translate(30px, -30px) scale(0.9); }
+  }
+  .gc-particles {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .gc-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,140,66,0.6);
+    animation: particleFloat linear infinite;
+    filter: blur(1px);
+  }
+  @keyframes particleFloat {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+  }
+  .gc-mouse-glow {
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,140,66,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(-50%, -50%);
+    transition: left 0.15s ease-out, top 0.15s ease-out;
+    mix-blend-mode: screen;
+  }
+  .gc-grain {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    animation: grainShift 0.5s steps(5) infinite;
+  }
+  @keyframes grainShift {
+    0%, 100% { transform: translate(0,0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, -1px); }
+    80% { transform: translate(1px, 1px); }
+  }
+  .gc-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 0%, transparent 35%, rgba(10,5,3,0.7) 100%);
+  }
+
+  .gc-content {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+  }
+
+  .gc-topbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 16px 24px;
+    position: relative;
+    z-index: 20;
+  }
+  .gc-admin-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .gc-admin-btn:hover {
+    background: rgba(0,0,0,0.5);
+    border-color: rgba(255,140,66,0.5);
+    box-shadow: 0 0 20px rgba(255,140,66,0.2);
+    transform: translateY(-1px);
+  }
+  /* نص الزر: يبقى المستطيل والأيقونة كما هما، ويتغيّر النص فقط بتلاشٍ سلس بعد نجاح الدخول */
+  #adminBtnText {
+    display: inline-block;
+    transition: opacity 0.35s ease;
+  }
+  #adminBtnText.gc-text-swap {
+    opacity: 0;
+  }
+
+  .gc-page {
+    display: none;
+    animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .gc-page.active {
+    display: block;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .gc-home {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 70px);
+    text-align: center;
+    padding: 20px;
+    position: relative;
+    z-index: 10;
+  }
+  .gc-welcome {
+    font-size: clamp(22px, 5vw, 44px);
+    font-weight: 700;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    color: #fff;
+    text-shadow: 0 2px 30px rgba(0,0,0,0.6);
+    max-width: 800px;
+    animation: textReveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+  @keyframes textReveal {
+    from { opacity: 0; transform: translateY(20px); filter: blur(8px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  .gc-subtitle {
+    font-size: 16px;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 40px;
+    font-weight: 300;
+    animation: textReveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+  }
+  .gc-browse-btn {
+    background: linear-gradient(135deg, var(--green), var(--green-light));
+    color: #fff;
+    border: none;
+    padding: 14px 48px;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 4px 20px rgba(46,125,50,0.3);
+    animation: textReveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+    position: relative;
+    overflow: hidden;
+  }
+  .gc-browse-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  .gc-browse-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(46,125,50,0.5);
+  }
+  .gc-browse-btn:hover::before {
+    transform: translateX(100%);
+  }
+  .gc-browse-btn:active { transform: translateY(0) scale(0.98); }
+
+  .gc-games-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .gc-games-title { font-size: 24px; font-weight: 700; line-height: 1; margin: 0; padding-top: 2px; }
+  .gc-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  .gc-back-btn:hover { background: rgba(0,0,0,0.5); transform: translateX(3px); }
+
+  .gc-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+    padding: 0 24px 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (min-width: 1200px) {
+    .gc-games-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  }
+  @media (min-width: 769px) and (max-width: 1199px) {
+    .gc-games-grid { grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 0 20px 35px; }
+  }
+  @media (max-width: 768px) {
+    .gc-games-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 12px 30px; }
+  }
+  @media (max-width: 400px) {
+    .gc-games-grid { grid-template-columns: 1fr; gap: 14px; padding: 0 14px 25px; }
+  }
+
+  /* ====== GAME CARDS WITH SMOOTH TRANSITIONS ====== */
+  .gc-game-card {
+    background: rgba(0,0,0,0.25);
+    border: 2px solid transparent;
+    border-radius: 16px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    animation: cardReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: 0 0 0 rgba(0,0,0,0);
+  }
+  .gc-game-card:nth-child(1) { animation-delay: 0.05s; }
+  .gc-game-card:nth-child(2) { animation-delay: 0.1s; }
+  .gc-game-card:nth-child(3) { animation-delay: 0.15s; }
+  .gc-game-card:nth-child(4) { animation-delay: 0.2s; }
+  .gc-game-card:nth-child(5) { animation-delay: 0.25s; }
+  .gc-game-card:nth-child(6) { animation-delay: 0.3s; }
+  @keyframes cardReveal {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .gc-game-card.available {
+    border-color: rgba(76,175,80,0.3);
+    transition: border-color 0.4s ease, box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), background 0.4s ease;
+  }
+  .gc-game-card.available:hover {
+    box-shadow: 0 0 30px rgba(76,175,80,0.25), 0 8px 32px rgba(0,0,0,0.3);
+    transform: translateY(-6px) scale(1.02);
+    background: rgba(76,175,80,0.08);
+    border-color: var(--green-light);
+  }
+  .gc-game-card.available.selected {
+    box-shadow: 0 0 40px rgba(76,175,80,0.4), 0 8px 32px rgba(0,0,0,0.3);
+    transform: translateY(-6px) scale(1.02);
+    background: rgba(76,175,80,0.12);
+    border-color: var(--green-light);
+  }
+
+  .gc-game-card.broken {
+    border-color: var(--red-light);
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  .gc-game-card.maintenance {
+    border-color: rgba(239,108,0,0.3);
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  .gc-game-card.coming-soon {
+    border-color: rgba(255,255,255,0.15);
+    border-style: dashed;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .gc-game-card.available:active, .gc-game-card.maintenance:active {
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 0 30px rgba(76,175,80,0.3);
+      transform: translateY(-4px) scale(0.98);
+    }
+    .gc-game-card.available.selected {
+      transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+  }
+
+  .gc-game-img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+    object-fit: cover;
+    margin-bottom: 12px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.4s ease;
+  }
+  .gc-game-card:hover .gc-game-img {
+    transform: scale(1.05);
+  }
+  .gc-game-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.6s ease;
+  }
+  .gc-game-card:hover .gc-game-img img {
+    transform: scale(1.1);
+  }
+
+  /* طبقة البلور (٧٥٪) توضع فقط فوق صورة اللعبة، والكلمة تُثبَّت بمنتصف الصورة بالضبط */
+  .gc-img-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    background: rgba(10, 5, 3, 0.75);
+    border-radius: inherit;
+    z-index: 2;
+  }
+  .gc-img-overlay-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: #fff;
+    padding: 7px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .gc-img-overlay-label.broken {
+    background: var(--red);
+    box-shadow: 0 4px 20px rgba(198,40,40,0.5);
+  }
+  .gc-img-overlay-label.maintenance {
+    background: var(--orange-status);
+    box-shadow: 0 4px 20px rgba(239,108,0,0.5);
+  }
+  .gc-img-overlay-label.coming-soon {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  @media (min-width: 1200px) {
+    .gc-game-img { aspect-ratio: 16 / 9; border-radius: 14px; }
+  }
+  @media (min-width: 769px) and (max-width: 1199px) {
+    .gc-game-img { aspect-ratio: 4 / 3; border-radius: 12px; }
+    .gc-game-card { padding: 12px; }
+  }
+  @media (max-width: 768px) {
+    .gc-game-img { aspect-ratio: 1 / 1; border-radius: 10px; margin-bottom: 10px; }
+    .gc-game-card { padding: 10px; }
+    .gc-game-name { font-size: 14px !important; }
+    .gc-game-desc { font-size: 11px !important; }
+  }
+  @media (max-width: 400px) {
+    .gc-game-img { aspect-ratio: 16 / 10; border-radius: 12px; }
+    .gc-game-card { padding: 14px; }
+  }
+
+  .gc-game-name { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+  .gc-game-desc { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+  .gc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 10px;
+  }
+  .gc-status-badge.available { background: rgba(76,175,80,0.2); color: #81C784; }
+  .gc-status-badge.maintenance { background: rgba(239,108,0,0.2); color: #FFB74D; }
+  .gc-status-badge.coming-soon { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+
+  .gc-ellipsis {
+    display: inline-block;
+    min-width: 20px;
+    text-align: left;
+  }
+  .gc-ellipsis span {
+    animation: ellipsisBlink 1.5s infinite;
+    opacity: 0;
+  }
+  .gc-ellipsis span:nth-child(1) { animation-delay: 0s; }
+  .gc-ellipsis span:nth-child(2) { animation-delay: 0.3s; }
+  .gc-ellipsis span:nth-child(3) { animation-delay: 0.6s; }
+  @keyframes ellipsisBlink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+
+  /* ====== MODALS ====== */
+  .gc-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: overlayIn 0.3s ease;
+  }
+  .gc-modal-overlay.active { display: flex; }
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .gc-modal {
+    background: linear-gradient(145deg, #3E2723, #1A0F0A);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 28px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+    animation: modalIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: center;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.9) translateY(30px); filter: blur(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+  }
+  .gc-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+  .gc-input-group { margin-bottom: 14px; }
+  .gc-input-group label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .gc-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+  .gc-input:focus {
+    outline: none;
+    border-color: #FF8C42;
+    box-shadow: 0 0 0 3px rgba(255,140,66,0.15);
+  }
+  .gc-modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .gc-btn {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .gc-btn-primary {
+    background: linear-gradient(135deg, #FF8C42, #E76F51);
+    color: #fff;
+  }
+  .gc-btn-primary:hover {
+    box-shadow: 0 4px 20px rgba(255,140,66,0.4);
+    transform: translateY(-1px);
+  }
+  .gc-btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .gc-btn-secondary:hover { background: rgba(255,255,255,0.15); }
+  .gc-btn-danger {
+    background: linear-gradient(135deg, var(--red), var(--red-light));
+    color: #fff;
+  }
+  .gc-btn-danger:hover {
+    box-shadow: 0 4px 20px rgba(198,40,40,0.4);
+    transform: translateY(-1px);
+  }
+  .gc-error-msg {
+    color: var(--red-light);
+    font-size: 12px;
+    margin-top: 6px;
+    text-align: center;
+    display: none;
+  }
+  .gc-error-msg.show { display: block; }
+
+  /* ====== ADMIN PANEL ====== */
+  .gc-admin-panel { padding: 0 20px 40px; }
+  .gc-section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+
+  .gc-upload-area {
+    background: rgba(0,0,0,0.25);
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .gc-upload-area:hover, .gc-upload-area.dragover {
+    border-color: #FF8C42;
+    background: rgba(255,140,66,0.08);
+    transform: scale(1.01);
+  }
+  .gc-upload-area input { display: none; }
+  .gc-upload-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .gc-upload-hint { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  .gc-game-form {
+    background: rgba(0,0,0,0.25);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: cardReveal 0.5s ease both;
+  }
+  .gc-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .gc-select {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .gc-select option { background: #1A0F0A; color: #fff; }
+
+  .gc-img-preview {
+    width: 100%;
+    height: 120px;
+    border-radius: 10px;
+    object-fit: cover;
+    margin-top: 10px;
+    display: none;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .gc-img-preview.show { display: block; animation: previewIn 0.3s ease; }
+  @keyframes previewIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .gc-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .gc-toggle-label { font-size: 13px; color: rgba(255,255,255,0.7); }
+  .gc-toggle {
+    width: 44px;
+    height: 24px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+  }
+  .gc-toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    right: 3px;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .gc-toggle.active { background: var(--green-light); }
+  .gc-toggle.active::after { right: 23px; }
+
+  .gc-games-table { width: 100%; border-collapse: collapse; }
+  .gc-games-table th {
+    text-align: right;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .gc-games-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .gc-games-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .gc-table-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .gc-table-status.available { background: rgba(76,175,80,0.15); color: #81C784; }
+  .gc-table-status.broken { background: rgba(239,83,80,0.15); color: #EF5350; }
+  .gc-table-status.maintenance { background: rgba(239,108,0,0.15); color: #FFB74D; }
+  .gc-table-status.coming-soon { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+
+  .gc-action-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .gc-edit-btn {
+    background: rgba(255,140,66,0.15);
+    color: #FF8C42;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .gc-edit-btn:hover { background: rgba(255,140,66,0.3); transform: scale(1.05); }
+  .gc-delete-btn {
+    background: rgba(239,83,80,0.15);
+    color: #EF5350;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .gc-delete-btn:hover { background: rgba(239,83,80,0.3); transform: scale(1.05); }
+
+  .gc-empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: rgba(255,255,255,0.4);
+  }
+  .gc-privacy-banner {
+    background: linear-gradient(90deg, rgba(46,125,50,0.15), rgba(46,125,50,0.05));
+    border: 1px solid rgba(76,175,80,0.2);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    color: #81C784;
+    animation: cardReveal 0.5s ease both;
+  }
+  .gc-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #3E2723;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 200;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255,255,255,0.1);
+    white-space: nowrap;
+  }
+  .gc-toast.show { transform: translateX(-50%) translateY(0); }
+
+  .gc-img-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .gc-img-tab {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.6);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+  .gc-img-tab.active {
+    background: rgba(255,140,66,0.15);
+    border-color: #FF8C42;
+    color: #FF8C42;
+  }
+
+  .gc-confirm-text {
+    text-align: center;
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .gc-confirm-game-name {
+    color: #fff;
+    font-weight: 600;
+  }
+  .gc-confirm-link-url {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  @media (max-width: 768px) {
+    .gc-topbar { padding: 12px 16px; }
+    .gc-admin-btn { padding: 6px 12px; font-size: 12px; }
+    .gc-home { min-height: calc(100vh - 60px); padding: 16px; }
+    .gc-welcome { font-size: 20px; }
+    .gc-subtitle { font-size: 14px; margin-bottom: 30px; }
+    .gc-browse-btn { padding: 10px 32px; font-size: 16px; }
+    .gc-games-header { padding: 12px 16px; }
+    .gc-games-title { font-size: 20px; }
+    .gc-modal { padding: 20px; }
+    .gc-form-row { grid-template-columns: 1fr; }
+    .gc-admin-panel { padding: 0 16px 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="gc-bg">
+  <div class="gc-mesh"></div>
+  <div class="gc-blob"></div>
+  <div class="gc-blob"></div>
+  <div class="gc-blob"></div>
+  <div class="gc-blob"></div>
+  <div class="gc-blob"></div>
+</div>
+<div class="gc-particles" id="particlesContainer"></div>
+<div class="gc-mouse-glow" id="mouseGlow"></div>
+<div class="gc-vignette"></div>
+<div class="gc-grain"></div>
+
+<div class="gc-content">
+  <div class="gc-topbar">
+    <button class="gc-admin-btn" id="adminBtn" onclick="openAdminModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="currentColor"/>
+        <path d="M4 20C4 16.6863 6.68629 14 10 14H14C17.3137 14 20 16.6863 20 20V21H4V20Z" fill="currentColor" fill-opacity="0.5"/>
+      </svg>
+      <span id="adminBtnText">تسجيل دخول المشرف</span>
+    </button>
+  </div>
+
+  <!-- Home Page -->
+  <div class="gc-page active" id="pageHome">
+    <div class="gc-home">
+      <h1 class="gc-welcome">مرحبًا بكم في مركز العاب نادي الإنجاز الإبداعي</h1>
+      <p class="gc-subtitle">وجهتك المفضلة لأفضل الألعاب التفاعلية</p>
+      <button class="gc-browse-btn" onclick="showPage('games')">تصفح</button>
+    </div>
+  </div>
+
+  <!-- Games Page -->
+  <div class="gc-page" id="pageGames">
+    <div class="gc-games-header">
+      <button class="gc-back-btn" onclick="showPage('home')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15.5303 4.46967C15.8232 4.76256 15.8232 5.23744 15.5303 5.53033L8.06066 13L15.5303 20.4697C15.8232 20.7626 15.8232 21.2374 15.5303 21.5303C15.2374 21.8232 14.7626 21.8232 14.4697 21.5303L6.21967 13.2803C5.92678 12.9874 5.92678 12.5126 6.21967 12.2197L14.4697 3.96967C14.7626 3.67678 15.2374 3.67678 15.5303 3.96967V4.46967Z" fill="currentColor"/>
+        </svg>
+        رجوع
+      </button>
+      <h2 class="gc-games-title">الألعاب المتوفرة</h2>
+    </div>
+    <div class="gc-games-grid" id="gamesGrid"></div>
+  </div>
+
+  <!-- Admin Panel Page -->
+  <div class="gc-page" id="pageAdmin">
+    <div class="gc-games-header">
+      <button class="gc-back-btn" onclick="showPage('home')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15.5303 4.46967C15.8232 4.76256 15.8232 5.23744 15.5303 5.53033L8.06066 13L15.5303 20.4697C15.8232 20.7626 15.8232 21.2374 15.5303 21.5303C15.2374 21.8232 14.7626 21.8232 14.4697 21.5303L6.21967 13.2803C5.92678 12.9874 5.92678 12.5126 6.21967 12.2197L14.4697 3.96967C14.7626 3.67678 15.2374 3.67678 15.5303 3.96967V4.46967Z" fill="currentColor"/>
+        </svg>
+        رجوع
+      </button>
+      <h2 class="gc-games-title">لوحة تحكم المشرف</h2>
+    </div>
+    <div class="gc-admin-panel">
+      <div class="gc-privacy-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M17 3.8H7C5.78497 3.8 4.8 4.78497 4.8 6V15.7647C4.8 16.574 5.24438 17.318 5.95698 17.7017L10.957 20.394C11.6081 20.7446 12.3919 20.7446 13.043 20.394L18.043 17.7017C18.7556 17.318 19.2 16.574 19.2 15.7647V6C19.2 4.78497 18.215 3.8 17 3.8ZM7 2C4.79086 2 3 3.79086 3 6V15.7647C3 17.2362 3.80796 18.5889 5.1036 19.2866L10.1036 21.9789C11.2875 22.6164 12.7125 22.6164 13.8964 21.9789L18.8964 19.2866C20.192 18.5889 21 17.2362 21 15.7647V6C21 3.79086 19.2091 2 17 2H7Z" fill="currentColor"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M16.7248 8.63051C17.0763 8.98198 17.0763 9.55183 16.7248 9.9033L11.7627 14.8654C11.4113 15.2169 10.8414 15.2169 10.4899 14.8654L7.81839 12.1939C7.46692 11.8424 7.46691 11.2726 7.81839 10.9211C8.16986 10.5696 8.7397 10.5696 9.09118 10.9211L11.1263 12.9562L15.4521 8.63051C15.8035 8.27904 16.3734 8.27904 16.7248 8.63051Z" fill="currentColor"/>
+        </svg>
+        وضع الخصوصية مفعل — الألعاب المحملة غير متاحة للعامة
+      </div>
+
+      <div class="gc-game-form">
+        <h3 class="gc-section-title" style="margin-bottom:16px;font-size:16px;">إضافة لعبة جديدة</h3>
+        <div class="gc-input-group">
+          <label>اسم اللعبة</label>
+          <input type="text" class="gc-input" id="gameName" placeholder="أدخل اسم اللعبة">
+        </div>
+        <div class="gc-form-row">
+          <div class="gc-input-group">
+            <label>نوع المصدر</label>
+            <select class="gc-select" id="gameType" onchange="toggleSourceInput()">
+              <option value="link">رابط</option>
+              <option value="file">ملف</option>
+            </select>
+          </div>
+          <div class="gc-input-group">
+            <label>الحالة</label>
+            <select class="gc-select" id="gameStatus">
+              <option value="available">متاحة</option>
+              <option value="maintenance">صيانة</option>
+              <option value="coming-soon">قريبًا</option>
+              <option value="broken">معطلة</option>
+            </select>
+          </div>
+        </div>
+        <div class="gc-input-group" id="linkGroup">
+          <label>رابط اللعبة</label>
+          <input type="url" class="gc-input" id="gameLink" placeholder="https://example.com/game">
+        </div>
+        <div class="gc-input-group" id="fileGroup" style="display:none;">
+          <label>ملف اللعبة</label>
+          <div class="gc-upload-area" id="dropZone">
+            <input type="file" id="gameFile" onchange="handleFileSelect(event)">
+            <div class="gc-upload-text" id="dropZoneText">اضغط أو اسحب الملف هنا</div>
+            <div class="gc-upload-hint" id="fileNameHint">PDF, ZIP, HTML — الحد الأقصى 50 ميجابايت</div>
+          </div>
+        </div>
+
+        <div class="gc-input-group">
+          <label>صورة اللعبة</label>
+          <div class="gc-img-tabs">
+            <button type="button" class="gc-img-tab active" id="tabFile" onclick="switchImageSource('file')">📁 من الجهاز</button>
+            <button type="button" class="gc-img-tab" id="tabUrl" onclick="switchImageSource('url')">🔗 رابط</button>
+          </div>
+
+          <div id="imgFileSection">
+            <div class="gc-upload-area" id="imgDropZone">
+              <input type="file" id="gameImage" accept="image/*" onchange="handleImageSelect(event)">
+              <div class="gc-upload-text" id="imgDropZoneText">اضغط لاختيار صورة من الجهاز</div>
+              <div class="gc-upload-hint">PNG, JPG, WEBP — الحد الأقصى 5 ميجابايت</div>
+            </div>
+          </div>
+
+          <div id="imgUrlSection" style="display:none;">
+            <input type="url" class="gc-input" id="gameImageUrl" placeholder="https://example.com/image.jpg" oninput="previewImageUrl()">
+          </div>
+
+          <img class="gc-img-preview" id="imgPreview" alt="">
+        </div>
+
+        <div class="gc-input-group">
+          <label>وصف اللعبة</label>
+          <input type="text" class="gc-input" id="gameDesc" placeholder="وصف مختصر للعبة">
+        </div>
+        <div class="gc-toggle-row">
+          <span class="gc-toggle-label">الخصوصية — إخفاء اللعبة عن الزوار</span>
+          <div class="gc-toggle active" id="privacyToggle" onclick="this.classList.toggle('active')"></div>
+        </div>
+        <button class="gc-btn gc-btn-primary" style="width:100%;margin-top:16px;" onclick="addGame()">إضافة اللعبة</button>
+      </div>
+
+      <h3 class="gc-section-title" style="margin-bottom:12px;">قائمة الألعاب</h3>
+      <div id="adminGamesList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Login Modal -->
+<div class="gc-modal-overlay" id="adminModal">
+  <div class="gc-modal">
+    <h3 class="gc-modal-title">تسجيل دخول المشرف</h3>
+    <div class="gc-input-group">
+      <label>اسم المستخدم</label>
+      <input type="text" class="gc-input" id="adminUser" placeholder="أدخل اسم المستخدم">
+    </div>
+    <div class="gc-input-group">
+      <label>كلمة المرور</label>
+      <input type="password" class="gc-input" id="adminPass" placeholder="أدخل كلمة المرور">
+    </div>
+    <div class="gc-error-msg" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+    <div class="gc-modal-actions">
+      <button class="gc-btn gc-btn-secondary" onclick="closeAdminModal()">إلغاء</button>
+      <button class="gc-btn gc-btn-primary" onclick="doLogin()">دخول</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="gc-modal-overlay" id="deleteModal">
+  <div class="gc-modal">
+    <h3 class="gc-modal-title">تأكيد الحذف</h3>
+    <p class="gc-confirm-text">
+      هل أنت متأكد من حذف اللعبة<br>
+      <span class="gc-confirm-game-name" id="deleteGameName">---</span>؟
+    </p>
+    <div class="gc-modal-actions">
+      <button class="gc-btn gc-btn-secondary" onclick="closeDeleteModal()">إلغاء</button>
+      <button class="gc-btn gc-btn-danger" onclick="confirmDelete()">حذف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Game Modal -->
+<div class="gc-modal-overlay" id="editModal">
+  <div class="gc-modal">
+    <h3 class="gc-modal-title">تعديل اللعبة</h3>
+    <div class="gc-input-group">
+      <label>الحالة</label>
+      <select class="gc-select" id="editGameStatus">
+        <option value="available">متاحة</option>
+        <option value="maintenance">صيانة</option>
+        <option value="coming-soon">قريبًا</option>
+        <option value="broken">معطلة</option>
+      </select>
+    </div>
+    <div class="gc-toggle-row" style="margin-top:16px;padding-top:0;border-top:none;">
+      <span class="gc-toggle-label">الخصوصية — إخفاء اللعبة عن الزوار</span>
+      <div class="gc-toggle" id="editPrivacyToggle" onclick="this.classList.toggle('active')"></div>
+    </div>
+    <div class="gc-modal-actions" style="margin-top:24px;">
+      <button class="gc-btn gc-btn-secondary" onclick="closeEditModal()">إلغاء</button>
+      <button class="gc-btn gc-btn-primary" onclick="saveEditGame()">حفظ التعديلات</button>
+    </div>
+  </div>
+</div>
+
+<!-- External Link Redirect Confirmation Modal -->
+<div class="gc-modal-overlay" id="linkConfirmModal">
+  <div class="gc-modal">
+    <h3 class="gc-modal-title">مغادرة الموقع</h3>
+    <p class="gc-confirm-text">
+      أنت على وشك مغادرة الموقع والانتقال إلى رابط خارجي للعبة<br>
+      <span class="gc-confirm-game-name" id="linkConfirmName">---</span>
+      <span class="gc-confirm-link-url" id="linkConfirmUrl"></span>
+    </p>
+    <div class="gc-modal-actions">
+      <button class="gc-btn gc-btn-secondary" onclick="closeLinkConfirmModal()">إلغاء</button>
+      <button class="gc-btn gc-btn-primary" onclick="confirmLinkOpen()">متابعة</button>
+    </div>
+  </div>
+</div>
+
+<!-- File Download Confirmation Modal -->
+<div class="gc-modal-overlay" id="downloadConfirmModal">
+  <div class="gc-modal">
+    <h3 class="gc-modal-title">تنزيل الملف</h3>
+    <p class="gc-confirm-text">
+      هل ترغب بتنزيل ملف لعبة<br>
+      <span class="gc-confirm-game-name" id="downloadConfirmName">---</span>؟
+    </p>
+    <div class="gc-modal-actions">
+      <button class="gc-btn gc-btn-secondary" onclick="closeDownloadConfirmModal()">إلغاء</button>
+      <button class="gc-btn gc-btn-primary" onclick="confirmDownload()">تنزيل</button>
+    </div>
+  </div>
+</div>
+
+<div class="gc-toast" id="toast"></div>
+
+<script>
+  let isAdmin = false;
+  let selectedGame = null;
+  let uploadedFile = null;
+  let uploadedImage = null;
+  let imageSourceMode = 'file';
+  let gameToDelete = null;
+  let gameToEdit = null;
+  let pendingLinkGame = null;
+  let pendingDownloadGame = null;
+
+  const STORAGE_KEY = 'gc_games_data_v1';
+
+  // ====== مزامنة سحابية (Firebase) ======
+  // هذا يحل مشكلة "التعديل يختفي" عند التنقل بين كروم وإيدج أو بين الأجهزة.
+  // بدون هذا، كل متصفح يخزن نسخته الخاصة محليًا (localStorage) ولا يشوف تعديلات المتصفحات الثانية.
+  //
+  // خطوات التفعيل (٥ دقائق، مجاني):
+  // 1) روح إلى https://console.firebase.google.com وسوّي مشروع جديد
+  // 2) من القائمة الجانبية: Build > Firestore Database > Create database (اختر وضع Test mode مبدئيًا)
+  // 3) من إعدادات المشروع (⚙️ > Project settings) > Your apps > أضف تطبيق ويب (</>) وانسخ بيانات firebaseConfig
+  // 4) الصق البيانات مكان القيم أدناه (YOUR_...)
+  // 5) غيّر FIREBASE_ENABLED إلى true
+  const FIREBASE_ENABLED = false;
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  let gamesDocRef = null;
+  if (FIREBASE_ENABLED && window.firebase) {
+    firebase.initializeApp(firebaseConfig);
+    gamesDocRef = firebase.firestore().collection('gc_data').doc('games');
+  }
+
+  const defaultGames = [
+    { id: 1, name: "لعبة المغامرة", desc: "استكشف عوالم جديدة واكتشف الأسرار", status: "available", type: "link", source: "https://example.com/adventure", image: null, icon: "🎮", private: false },
+    { id: 2, name: "سباق السيارات", desc: "سباقات مثيرة مع أصدقائك", status: "available", type: "link", source: "https://example.com/racing", image: null, icon: "🏎️", private: false },
+    { id: 3, name: "لغز الذكاء", desc: "اختبر ذكاءك مع ألغاز متنوعة", status: "maintenance", type: "link", source: "https://example.com/puzzle", image: null, icon: "🧩", private: false },
+    { id: 4, name: "حرب الفضاء", desc: "معركة فضائية ملحمية", status: "broken", type: "link", source: "https://example.com/space", image: null, icon: "🚀", private: false },
+    { id: 5, name: "كرة القدم", desc: "أفضل لعبة كرة قدم تفاعلية", status: "coming-soon", type: "link", source: "", image: null, icon: "⚽", private: false },
+    { id: 6, name: "صيد السمك", desc: "استمتع بتجربة صيد واقعية", status: "available", type: "file", source: "game-fishing.zip", image: null, icon: "🎣", private: true },
+  ];
+
+  let games = [];
+
+  function loadGamesLocal() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        games = JSON.parse(saved);
+      } else {
+        games = JSON.parse(JSON.stringify(defaultGames));
+        saveGamesLocal();
+      }
+    } catch (e) {
+      games = JSON.parse(JSON.stringify(defaultGames));
+    }
+  }
+
+  function saveGamesLocal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+    } catch (e) {
+      console.warn('Failed to save to localStorage:', e);
+      showToast("⚠️ التخزين ممتلئ — احذف بعض الألعاب أو استخدم روابط صور");
+    }
+  }
+
+  // يشتغل مرة وحدة عند فتح الصفحة: يجيب البيانات (سحابيًا أو محليًا) ويرسمها،
+  // وإذا كانت سحابية يبقى مستمع حي يحدّث الشاشة تلقائيًا أي وقت يصير تعديل من أي جهاز/متصفح ثاني.
+  function loadGames() {
+    if (FIREBASE_ENABLED && gamesDocRef) {
+      gamesDocRef.onSnapshot((doc) => {
+        if (doc.exists && doc.data().games) {
+          games = doc.data().games;
+        } else {
+          games = JSON.parse(JSON.stringify(defaultGames));
+          gamesDocRef.set({ games: games });
+        }
+        renderGames();
+        if (isAdmin) renderAdminGames();
+      }, (err) => {
+        console.warn('Firebase sync error, falling back to local storage:', err);
+        loadGamesLocal();
+        renderGames();
+      });
+    } else {
+      loadGamesLocal();
+    }
+  }
+
+  function saveGames() {
+    if (FIREBASE_ENABLED && gamesDocRef) {
+      gamesDocRef.set({ games: games }).catch((e) => {
+        console.warn('Failed to save to Firebase:', e);
+        showToast("⚠️ فشل الحفظ على السحابة، تحقق من الاتصال بالإنترنت");
+        saveGamesLocal();
+      });
+    } else {
+      saveGamesLocal();
+    }
+  }
+
+  loadGames();
+
+  // ====== UX BACKGROUND ======
+  document.addEventListener('mousemove', (e) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 2;
+    const y = (e.clientY / window.innerHeight - 0.5) * 2;
+    const blobs = document.querySelectorAll('.gc-blob');
+    blobs.forEach((blob, i) => {
+      const factor = (i + 1) * 15;
+      blob.style.transform = `translate(${x * factor}px, ${y * factor}px)`;
+    });
+    const glow = document.getElementById('mouseGlow');
+    if (glow) {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top = e.clientY + 'px';
+    }
+  });
+
+  function createParticles() {
+    const container = document.getElementById('particlesContainer');
+    if (!container) return;
+    const particleCount = window.innerWidth < 768 ? 15 : 30;
+    for (let i = 0; i < particleCount; i++) {
+      const p = document.createElement('div');
+      p.className = 'gc-particle';
+      const size = Math.random() * 3 + 1;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      p.style.opacity = Math.random() * 0.5 + 0.2;
+      container.appendChild(p);
+    }
+  }
+  createParticles();
+
+  function playWelcomeSound() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15);
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.8);
+    } catch(e) {}
+  }
+  setTimeout(playWelcomeSound, 600);
+
+  function showPage(page) {
+    document.querySelectorAll(".gc-page").forEach(p => p.classList.remove("active"));
+    document.getElementById("page" + page.charAt(0).toUpperCase() + page.slice(1)).classList.add("active");
+    if (page === "games") renderGames();
+    if (page === "admin") renderAdminGames();
+  }
+
+  function renderGames() {
+    const grid = document.getElementById("gamesGrid");
+    const visibleGames = games.filter(g => !g.private || isAdmin);
+    if (visibleGames.length === 0) {
+      grid.innerHTML = `<div class="gc-empty-state" style="grid-column:1/-1;"><p>لا توجد ألعاب متاحة حاليًا</p></div>`;
+      return;
+    }
+    grid.innerHTML = visibleGames.map(game => {
+      const statusClass = game.status;
+      const isSelected = selectedGame === game.id ? "selected" : "";
+      let statusBadge = "";
+      let statusIcon = "";
+      let imgOverlay = "";
+      if (game.status === "available") {
+        statusBadge = `<span class="gc-status-badge available">متاحة</span>`;
+        statusIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.76253 3.10547C8.25778 3.10552 8.74424 3.23849 9.17073 3.49023L19.533 9.60742C20.8536 10.3869 21.2923 12.0901 20.5174 13.4121C20.2785 13.8195 19.9398 14.1604 19.533 14.4004L9.16975 20.5156C7.84722 21.2958 6.14596 20.8511 5.36995 19.5273C5.11962 19.1003 4.9872 18.6142 4.98714 18.1191V5.88672C4.98717 4.3537 6.22731 3.10547 7.76253 3.10547Z" fill="#81C784"/></svg>`;
+      } else if (game.status === "maintenance") {
+        imgOverlay = `<div class="gc-img-overlay"><span class="gc-img-overlay-label maintenance">صيانة</span></div>`;
+      } else if (game.status === "coming-soon") {
+        imgOverlay = `<div class="gc-img-overlay"><span class="gc-img-overlay-label coming-soon">قريبًا<span class="gc-ellipsis"><span>.</span><span>.</span><span>.</span></span></span></div>`;
+      } else if (game.status === "broken") {
+        imgOverlay = `<div class="gc-img-overlay"><span class="gc-img-overlay-label broken">معطلة</span></div>`;
+      }
+
+      const imgHtml = game.image
+        ? `<div class="gc-game-img"><img src="${game.image}" alt="${game.name}" loading="lazy" onerror="this.style.display='none'; this.parentElement.innerHTML='${game.icon || '🎮'}';">${imgOverlay}</div>`
+        : `<div class="gc-game-img">${game.icon || '🎮'}${imgOverlay}</div>`;
+
+      return `
+        <div class="gc-game-card ${statusClass} ${isSelected}" onclick="selectGame(${game.id})" data-id="${game.id}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;position:absolute;top:14px;left:14px;z-index:3;">
+            ${statusIcon ? `<div style="opacity:0.8;">${statusIcon}</div>` : ""}
+          </div>
+          ${imgHtml}
+          <div class="gc-game-name">${game.name}</div>
+          <div class="gc-game-desc">${game.desc}</div>
+          ${statusBadge}
+          ${game.private ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.4);">🔒 خاصة</div>` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  // عند اختيار لعبة متاحة: يتم التحديد بصريًا، ثم إن كان لها مصدر
+  // (رابط خارجي أو ملف للتنزيل) يظهر مربع تأكيد قبل تنفيذ أي إجراء.
+  function selectGame(id) {
+    const game = games.find(g => g.id === id);
+    if (!game || game.status === "broken") return;
+    selectedGame = selectedGame === id ? null : id;
+    renderGames();
+    if (selectedGame) {
+      showToast("تم اختيار: " + game.name);
+      if (game.status === "available" && game.source) {
+        if (game.type === "link") {
+          openLinkConfirmModal(game);
+        } else if (game.type === "file") {
+          openDownloadConfirmModal(game);
+        }
+      }
+    }
+  }
+
+  // ====== تأكيد الانتقال إلى رابط خارجي (يعمل على الجوال والحاسوب) ======
+  function openLinkConfirmModal(game) {
+    pendingLinkGame = game;
+    document.getElementById("linkConfirmName").textContent = game.name;
+    document.getElementById("linkConfirmUrl").textContent = game.source;
+    document.getElementById("linkConfirmModal").classList.add("active");
+  }
+  function closeLinkConfirmModal() {
+    document.getElementById("linkConfirmModal").classList.remove("active");
+    pendingLinkGame = null;
+  }
+  function confirmLinkOpen() {
+    if (pendingLinkGame && pendingLinkGame.source) {
+      window.open(pendingLinkGame.source, "_blank", "noopener,noreferrer");
+    }
+    closeLinkConfirmModal();
+  }
+
+  // ====== تأكيد تنزيل الملف ======
+  function openDownloadConfirmModal(game) {
+    pendingDownloadGame = game;
+    document.getElementById("downloadConfirmName").textContent = game.name;
+    document.getElementById("downloadConfirmModal").classList.add("active");
+  }
+  function closeDownloadConfirmModal() {
+    document.getElementById("downloadConfirmModal").classList.remove("active");
+    pendingDownloadGame = null;
+  }
+  function confirmDownload() {
+    if (pendingDownloadGame && pendingDownloadGame.source) {
+      const a = document.createElement("a");
+      a.href = pendingDownloadGame.source;
+      a.download = pendingDownloadGame.source;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast("جارِ تنزيل: " + pendingDownloadGame.name);
+    }
+    closeDownloadConfirmModal();
+  }
+
+  function openAdminModal() {
+    if (isAdmin) { showPage("admin"); return; }
+    document.getElementById("adminModal").classList.add("active");
+    document.getElementById("adminUser").focus();
+  }
+  function closeAdminModal() {
+    document.getElementById("adminModal").classList.remove("active");
+    document.getElementById("loginError").classList.remove("show");
+    document.getElementById("adminUser").value = "";
+    document.getElementById("adminPass").value = "";
+  }
+  function doLogin() {
+    const user = document.getElementById("adminUser").value.trim();
+    const pass = document.getElementById("adminPass").value.trim();
+    if (user === "1REPLI" && pass === "REPLI1") {
+      isAdmin = true;
+      closeAdminModal();
+      showPage("admin");
+      showToast("تم تسجيل الدخول بنجاح");
+      hideAdminButton();
+    } else {
+      document.getElementById("loginError").classList.add("show");
+    }
+  }
+
+  // بعد نجاح الدخول: يبقى المستطيل والأيقونة كما هما، ويتغيّر النص فقط
+  // من "تسجيل دخول المشرف" إلى "لوحة التحكم" بتلاشٍ سلس (تلاشي ثم ظهور).
+  function hideAdminButton() {
+    const label = document.getElementById("adminBtnText");
+    if (!label) return;
+    label.classList.add("gc-text-swap");
+    setTimeout(() => {
+      label.textContent = "لوحة التحكم";
+      label.classList.remove("gc-text-swap");
+    }, 350);
+  }
+
+  function toggleSourceInput() {
+    const type = document.getElementById("gameType").value;
+    document.getElementById("linkGroup").style.display = type === "link" ? "block" : "none";
+    document.getElementById("fileGroup").style.display = type === "file" ? "block" : "none";
+  }
+
+  function switchImageSource(mode) {
+    imageSourceMode = mode;
+    document.getElementById("tabFile").classList.toggle("active", mode === 'file');
+    document.getElementById("tabUrl").classList.toggle("active", mode === 'url');
+    document.getElementById("imgFileSection").style.display = mode === 'file' ? 'block' : 'none';
+    document.getElementById("imgUrlSection").style.display = mode === 'url' ? 'block' : 'none';
+    
+    if (mode === 'url') {
+      previewImageUrl();
+    } else {
+      const imgPreview = document.getElementById("imgPreview");
+      if (uploadedImage) {
+        imgPreview.src = uploadedImage;
+        imgPreview.classList.add("show");
+      } else {
+        imgPreview.classList.remove("show");
+      }
+    }
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+      uploadedFile = file.name;
+      document.getElementById("dropZoneText").textContent = file.name;
+    }
+  }
+
+  function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        uploadedImage = evt.target.result;
+        const imgPreview = document.getElementById("imgPreview");
+        imgPreview.src = uploadedImage;
+        imgPreview.classList.add("show");
+      };
+      reader.readAsDataURL(file);
+      document.getElementById("imgDropZoneText").textContent = file.name;
+    }
+  }
+
+  function previewImageUrl() {
+    const url = document.getElementById("gameImageUrl").value.trim();
+    const imgPreview = document.getElementById("imgPreview");
+    if (url) {
+      imgPreview.src = url;
+      imgPreview.classList.add("show");
+    } else {
+      imgPreview.classList.remove("show");
+    }
+  }
+
+  function addGame() {
+    const name = document.getElementById("gameName").value.trim();
+    const desc = document.getElementById("gameDesc").value.trim();
+    const type = document.getElementById("gameType").value;
+    const status = document.getElementById("gameStatus").value;
+    const isPrivate = document.getElementById("privacyToggle").classList.contains("active");
+
+    if (!name) {
+      showToast("⚠️ يرجى إدخال اسم اللعبة");
+      return;
+    }
+
+    let source = "";
+    if (type === "link") {
+      source = document.getElementById("gameLink").value.trim();
+    } else {
+      source = uploadedFile || "file.zip";
+    }
+
+    let imgSrc = null;
+    if (imageSourceMode === 'file') {
+      imgSrc = uploadedImage;
+    } else {
+      imgSrc = document.getElementById("gameImageUrl").value.trim() || null;
+    }
+
+    const newGame = {
+      id: Date.now(),
+      name: name,
+      desc: desc || "لا يوجد وصف",
+      status: status,
+      type: type,
+      source: source,
+      image: imgSrc,
+      icon: "🎮",
+      private: isPrivate
+    };
+
+    games.unshift(newGame);
+    saveGames();
+    renderAdminGames();
+    showToast("تمت إضافة اللعبة بنجاح!");
+
+    // Reset Form
+    document.getElementById("gameName").value = "";
+    document.getElementById("gameDesc").value = "";
+    document.getElementById("gameLink").value = "";
+    document.getElementById("gameImageUrl").value = "";
+    document.getElementById("imgPreview").classList.remove("show");
+    document.getElementById("dropZoneText").textContent = "اضغط أو اسحب الملف هنا";
+    document.getElementById("imgDropZoneText").textContent = "اضغط لاختيار صورة من الجهاز";
+    uploadedFile = null;
+    uploadedImage = null;
+  }
+
+  function renderAdminGames() {
+    const container = document.getElementById("adminGamesList");
+    if (games.length === 0) {
+      container.innerHTML = `<div class="gc-empty-state"><p>لا توجد ألعاب مضافة حاليًا</p></div>`;
+      return;
+    }
+
+    let html = `
+      <table class="gc-games-table">
+        <thead>
+          <tr>
+            <th>اللعبة</th>
+            <th>الحالة</th>
+            <th>النوع</th>
+            <th>الخصوصية</th>
+            <th>الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    games.forEach(game => {
+      let statusText = "متاحة";
+      if (game.status === "maintenance") statusText = "صيانة";
+      if (game.status === "coming-soon") statusText = "قريبًا";
+      if (game.status === "broken") statusText = "معطلة";
+
+      html += `
+        <tr>
+          <td><strong>${game.name}</strong></td>
+          <td><span class="gc-table-status ${game.status}">${statusText}</span></td>
+          <td>${game.type === 'link' ? 'رابط' : 'ملف'}</td>
+          <td>${game.private ? '🔒 خاصة' : '🌐 عامة'}</td>
+          <td>
+            <div class="gc-action-btns">
+              <button class="gc-edit-btn" onclick="openEditModal(${game.id})">تعديل</button>
+              <button class="gc-delete-btn" onclick="openDeleteModal(${game.id})">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  }
+
+  function openEditModal(id) {
+    gameToEdit = games.find(g => g.id === id);
+    if (!gameToEdit) return;
+    document.getElementById("editGameStatus").value = gameToEdit.status;
+    const toggle = document.getElementById("editPrivacyToggle");
+    if (gameToEdit.private) toggle.classList.add("active");
+    else toggle.classList.remove("active");
+    document.getElementById("editModal").classList.add("active");
+  }
+
+  function closeEditModal() {
+    document.getElementById("editModal").classList.remove("active");
+    gameToEdit = null;
+  }
+
+  function saveEditGame() {
+    if (!gameToEdit) return;
+    gameToEdit.status = document.getElementById("editGameStatus").value;
+    gameToEdit.private = document.getElementById("editPrivacyToggle").classList.contains("active");
+    saveGames();
+    renderAdminGames();
+    closeEditModal();
+    showToast("تم حفظ التعديلات بنجاح");
+  }
+
+  function openDeleteModal(id) {
+    gameToDelete = games.find(g => g.id === id);
+    if (!gameToDelete) return;
+    document.getElementById("deleteGameName").textContent = gameToDelete.name;
+    document.getElementById("deleteModal").classList.add("active");
+  }
+
+  function closeDeleteModal() {
+    document.getElementById("deleteModal").classList.remove("active");
+    gameToDelete = null;
+  }
+
+  function confirmDelete() {
+    if (!gameToDelete) return;
+    games = games.filter(g => g.id !== gameToDelete.id);
+    saveGames();
+    renderAdminGames();
+    closeDeleteModal();
+    showToast("تم حذف اللعبة بنجاح");
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+
+  // ====== DRAG & DROP ======
+  const dropZone = document.getElementById("dropZone");
+  if (dropZone) {
+    dropZone.addEventListener("click", () => document.getElementById("gameFile").click());
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById("gameFile").files = files;
+        handleFileSelect({ target: { files: files } });
+      }
+    });
+  }
+
+  const imgDropZone = document.getElementById("imgDropZone");
+  if (imgDropZone) {
+    imgDropZone.addEventListener("click", () => document.getElementById("gameImage").click());
+    imgDropZone.addEventListener("dragover", (e) => { e.preventDefault(); imgDropZone.classList.add("dragover"); });
+    imgDropZone.addEventListener("dragleave", () => imgDropZone.classList.remove("dragover"));
+    imgDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      imgDropZone.classList.remove("dragover");
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById("gameImage").files = files;
+        handleImageSelect({ target: { files: files } });
+      }
+    });
+  }
+
+  // ====== ENTER KEY FOR LOGIN ======
+  document.getElementById("adminPass")?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") doLogin();
+  });
+
+  // Initial render (في وضع Firebase الرسم الأول يصير تلقائيًا داخل loadGames عبر onSnapshot)
+  if (!FIREBASE_ENABLED) renderGames();
+</script>
+</body>
+</html>
