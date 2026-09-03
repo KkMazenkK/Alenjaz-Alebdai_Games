@@ -20,6 +20,7 @@
   إذا ما سويت هذي الخطوة بعد، ما تشيل هذا القسم — المتصفح ببساطة يرجع لخط النظام الاحتياطي (Segoe UI/Tahoma) بدون ما ينكسر أي شي بالموقع.
 -->
 <style>
+  @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap");
   @font-face {
     font-family: 'IBM Plex Sans Arabic';
     font-weight: 300;
@@ -50,10 +51,11 @@
     font-display: swap;
     src: url('fonts/IBMPlexSansArabic-Bold.woff2') format('woff2');
   }
+
+  html, body, body *, button, input, textarea, select, option {
+    font-family: 'IBM Plex Sans Arabic', sans-serif !important;
+  }
 </style>
-<!-- مكتبة Firebase (مطلوبة فقط بعد ما تفعّل FIREBASE_ENABLED وتعبّي firebaseConfig تحت في السكريبت) -->
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <!-- يمنع "قفزة" الخط: يخفي الصفحة جزء من الثانية لحد ما يتأكد المتصفح من تحميل الخط، بدل ما تبدأ بخط النظام وتتحول فجأة -->
 <style>html{visibility:hidden}html.gc-fonts-ready{visibility:visible}</style>
 <script>
@@ -1206,6 +1208,9 @@
 
 <div class="gc-toast" id="toast"></div>
 
+<!-- Firebase Realtime Database -->
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
 <script>
   let isAdmin = false;
   let selectedGame = null;
@@ -1219,31 +1224,22 @@
 
   const STORAGE_KEY = 'gc_games_data_v1';
 
-  // ====== مزامنة سحابية (Firebase) ======
-  // هذا يحل مشكلة "التعديل يختفي" عند التنقل بين كروم وإيدج أو بين الأجهزة.
-  // بدون هذا، كل متصفح يخزن نسخته الخاصة محليًا (localStorage) ولا يشوف تعديلات المتصفحات الثانية.
-  //
-  // خطوات التفعيل (٥ دقائق، مجاني):
-  // 1) روح إلى https://console.firebase.google.com وسوّي مشروع جديد
-  // 2) من القائمة الجانبية: Build > Firestore Database > Create database (اختر وضع Test mode مبدئيًا)
-  // 3) من إعدادات المشروع (⚙️ > Project settings) > Your apps > أضف تطبيق ويب (</>) وانسخ بيانات firebaseConfig
-  // 4) الصق البيانات مكان القيم أدناه (YOUR_...)
-  // 5) غيّر FIREBASE_ENABLED إلى true
-  const FIREBASE_ENABLED = false;
+  // ====== Firebase Realtime Database ======
+  // الحفظ السحابي والمزامنة الفورية بين الأجهزة والمتصفحات.
   const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAr6qXiuvmSAodyfnkXJ6ZNtVvdn9sHQuM",
+    authDomain: "aag1-da8c7.firebaseapp.com",
+    databaseURL: "https://aag1-da8c7-default-rtdb.firebaseio.com",
+    projectId: "aag1-da8c7",
+    storageBucket: "aag1-da8c7.firebasestorage.app",
+    messagingSenderId: "524449444428",
+    appId: "1:524449444428:web:1e27fc84377abcafd3fae9",
+    measurementId: "G-F5ER1Z0RC0"
   };
 
-  let gamesDocRef = null;
-  if (FIREBASE_ENABLED && window.firebase) {
-    firebase.initializeApp(firebaseConfig);
-    gamesDocRef = firebase.firestore().collection('gc_data').doc('games');
-  }
+  firebase.initializeApp(firebaseConfig);
+  const firebaseDb = firebase.database();
+  const firebaseGamesRef = firebaseDb.ref('games');
 
   const defaultGames = [
     { id: 1, name: "لعبة المغامرة", desc: "استكشف عوالم جديدة واكتشف الأسرار", status: "available", type: "link", source: "https://example.com/adventure", image: null, icon: "🎮", private: false },
@@ -1255,6 +1251,10 @@
   ];
 
   let games = [];
+  let firebaseReady = false;
+  let firebaseInitialLoadDone = false;
+  let firebaseWriteInProgress = false;
+  let firebaseListenerStarted = false;
 
   function loadGamesLocal() {
     try {
@@ -1279,39 +1279,79 @@
     }
   }
 
-  // يشتغل مرة وحدة عند فتح الصفحة: يجيب البيانات (سحابيًا أو محليًا) ويرسمها،
-  // وإذا كانت سحابية يبقى مستمع حي يحدّث الشاشة تلقائيًا أي وقت يصير تعديل من أي جهاز/متصفح ثاني.
+  // تحميل البيانات من Firebase مرة واحدة ثم الاستماع لأي تعديل جديد لحظيًا.
   function loadGames() {
-    if (FIREBASE_ENABLED && gamesDocRef) {
-      gamesDocRef.onSnapshot((doc) => {
-        if (doc.exists && doc.data().games) {
-          games = doc.data().games;
+    firebaseReady = true;
+
+    firebaseGamesRef.once('value')
+      .then((snapshot) => {
+        const remoteGames = snapshot.val();
+
+        if (Array.isArray(remoteGames)) {
+          games = remoteGames;
+          saveGamesLocal();
         } else {
-          games = JSON.parse(JSON.stringify(defaultGames));
-          gamesDocRef.set({ games: games });
+          // إذا كانت قاعدة Firebase فارغة، نحافظ على بيانات المتصفح إن وجدت،
+          // وإلا نبدأ بالبيانات الافتراضية ثم نرفعها إلى Firebase.
+          loadGamesLocal();
+          return firebaseGamesRef.set(games);
         }
+      })
+      .then(() => {
+        firebaseInitialLoadDone = true;
         renderGames();
         if (isAdmin) renderAdminGames();
-      }, (err) => {
-        console.warn('Firebase sync error, falling back to local storage:', err);
+        startFirebaseRealtimeSync();
+      })
+      .catch((err) => {
+        console.warn('Firebase load error, falling back to local storage:', err);
+        firebaseReady = false;
         loadGamesLocal();
+        firebaseInitialLoadDone = true;
         renderGames();
+        if (isAdmin) renderAdminGames();
       });
-    } else {
-      loadGamesLocal();
-    }
+  }
+
+  function startFirebaseRealtimeSync() {
+    if (firebaseListenerStarted) return;
+    firebaseListenerStarted = true;
+
+    firebaseGamesRef.on('value', (snapshot) => {
+      const remoteGames = snapshot.val();
+      if (!Array.isArray(remoteGames)) return;
+
+      const remoteJSON = JSON.stringify(remoteGames);
+      const localJSON = JSON.stringify(games);
+
+      // لا نعيد الرسم إذا كانت البيانات أصلًا نفسها.
+      if (remoteJSON === localJSON) return;
+
+      games = remoteGames;
+      saveGamesLocal();
+      renderGames();
+      if (isAdmin) renderAdminGames();
+    }, (error) => {
+      console.warn('Firebase realtime sync error:', error);
+    });
   }
 
   function saveGames() {
-    if (FIREBASE_ENABLED && gamesDocRef) {
-      gamesDocRef.set({ games: games }).catch((e) => {
-        console.warn('Failed to save to Firebase:', e);
-        showToast("⚠️ فشل الحفظ على السحابة، تحقق من الاتصال بالإنترنت");
-        saveGamesLocal();
-      });
-    } else {
-      saveGamesLocal();
+    saveGamesLocal();
+
+    if (!firebaseReady || !firebaseInitialLoadDone) {
+      return;
     }
+
+    firebaseWriteInProgress = true;
+    firebaseGamesRef.set(games)
+      .catch((e) => {
+        console.warn('Failed to save to Firebase:', e);
+        showToast("⚠️ فشل الحفظ السحابي، تحقق من اتصال الإنترنت");
+      })
+      .finally(() => {
+        firebaseWriteInProgress = false;
+      });
   }
 
   loadGames();
@@ -1771,8 +1811,7 @@
     if (e.key === "Enter") doLogin();
   });
 
-  // Initial render (في وضع Firebase الرسم الأول يصير تلقائيًا داخل loadGames عبر onSnapshot)
-  if (!FIREBASE_ENABLED) renderGames();
+  // ملاحظة: الرسم الأولي يصير داخل loadGames() نفسها أعلاه (سواء وضع محلي أو سحابي)
 </script>
 </body>
 </html>
